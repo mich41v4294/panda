@@ -190,7 +190,7 @@ class TestTeslaLongitudinalSafety(common.PandaSafetyTest):
     values = {"SpdCtrlLvr_Stat": command}
     return self.packer.make_can_msg_panda("STW_ACTN_RQ", 0, values)
 
-  def _long_control_msg(self, set_speed, acc_val=0, jerk_limits=[0, 0], accel_limits=[0, 0], aeb_event=0):
+  def _long_control_msg(self, set_speed, acc_val=0, jerk_limits=(0, 0), accel_limits=(0, 0), aeb_event=0):
     values = {
       "DAS_setSpeed": set_speed,
       "DAS_accState": acc_val,
