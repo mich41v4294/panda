@@ -1,7 +1,7 @@
 // BUS 0 is on the LKAS module (ASCM) side
 // BUS 2 is on the actuator (EPS) side
 
-static int gm_ascm_fwd_hook(int bus_num, CAN_FIFOMailBox_TypeDef *to_fwd) {
+static int gm_ascm_fwd_hook(int bus_num, CANPacket_t *to_fwd) {
 
   int bus_fwd = -1;
 
@@ -23,7 +23,7 @@ static int gm_ascm_fwd_hook(int bus_num, CAN_FIFOMailBox_TypeDef *to_fwd) {
       // the lkas messages sent by openpilot (put on unused 0x151 ane 0x153 addrs) and send it to
       // the actuator as 0x152 and 0x154
       uint32_t fwd_addr = addr + 1;
-      to_fwd->RIR = (fwd_addr << 21) | (to_fwd->RIR & 0x1fffff);
+      to_fwd->addr = fwd_addr;
     }
   }
 
