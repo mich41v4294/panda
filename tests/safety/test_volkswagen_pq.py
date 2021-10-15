@@ -25,7 +25,7 @@ MSG_LDW_1 = 0x5BE        # TX by OP, Lane line recognition and text alerts
 
 
 def volkswagen_pq_checksum(msg, addr, len_msg):
-  msg_bytes = msg.RDLR.to_bytes(4, 'little') + msg.RDHR.to_bytes(4, 'little')
+  msg_bytes = bytes(msg.data)
   msg_bytes = msg_bytes[1:len_msg]
 
   checksum = 0
@@ -60,15 +60,16 @@ class TestVolkswagenPqSafety(common.PandaSafetyTest):
   def _speed_msg(self, speed):
     ego_speed_scaled = int(speed / 0.01)
     to_send = make_msg(0, MSG_BREMSE_1)
-    to_send[0].RDLR = ego_speed_scaled << 17
+    to_send[0].data[2] = (ego_speed_scaled << 1) % 0xFF
+    to_send[0].data[3] = ((ego_speed_scaled << 1) % 0xFF00) >> 8
     return to_send
 
   # Brake light switch (shared message Motor_2)
   def _brake_msg(self, brake):
     to_send = make_msg(0, MSG_MOTOR_2)
-    to_send[0].RDLR = (0x1 << 16) if brake else 0
+    to_send[0].data[2] = 0x1 if brake else 0
     # since this siganl's used for engagement status, preserve current state
-    to_send[0].RDLR |= (self.safety.get_controls_allowed() & 0x3) << 22
+    to_send[0].data[2] |= (self.safety.get_controls_allowed() & 0x3) << 6
     return to_send
 
   # ACC engaged status (shared message Motor_2)
@@ -80,11 +81,14 @@ class TestVolkswagenPqSafety(common.PandaSafetyTest):
   def _lenkhilfe_3_msg(self, torque):
     to_send = make_msg(0, MSG_LENKHILFE_3, 6)
     t = abs(torque)
-    to_send[0].RDLR = ((t & 0x3FF) << 16)
+    to_send[0].data[2] = (t & 0xFF)
+    to_send[0].data[3] = (t >> 8) & 0x3
     if torque < 0:
-      to_send[0].RDLR |= 0x1 << 26
-    to_send[0].RDLR |= (self.cnt_lenkhilfe_3 % 16) << 12
-    to_send[0].RDLR |= volkswagen_pq_checksum(to_send[0], MSG_LENKHILFE_3, 8)
+      to_send[0].data[3] |= 0x1 << 2
+    to_send[0].data[1] |= (self.cnt_lenkhilfe_3 % 16) << 4
+    checksum = volkswagen_pq_checksum(to_send[0], MSG_LENKHILFE_3, 8)
+    to_send[0].data[0] |= checksum & 0xFF
+    to_send[0].data[1] |= (checksum & 0xFF00) >> 8
     self.__class__.cnt_lenkhilfe_3 += 1
     return to_send
 
@@ -92,11 +96,14 @@ class TestVolkswagenPqSafety(common.PandaSafetyTest):
   def _hca_1_msg(self, torque):
     to_send = make_msg(0, MSG_HCA_1, 5)
     t = abs(torque) << 5  # DBC scale from centi-Nm to PQ network (approximated)
-    to_send[0].RDLR = (t & 0x7FFF) << 16
+    to_send[0].data[2] = (t & 0xFF)
+    to_send[0].data[3] = (t >> 8) & 0x7F
     if torque < 0:
-      to_send[0].RDLR |= 0x1 << 31
-    to_send[0].RDLR |= (self.cnt_hca_1 % 16) << 8
-    to_send[0].RDLR |= volkswagen_pq_checksum(to_send[0], MSG_HCA_1, 8)
+      to_send[0].data[3] |= 0x1 << 7
+    to_send[0].data[1] |= (self.cnt_hca_1 % 16)
+    checksum = volkswagen_pq_checksum(to_send[0], MSG_HCA_1, 8)
+    to_send[0].data[0] |= checksum & 0xFF
+    to_send[0].data[1] |= (checksum & 0xFF00) >> 8
     self.__class__.cnt_hca_1 += 1
     return to_send
 
@@ -104,21 +111,23 @@ class TestVolkswagenPqSafety(common.PandaSafetyTest):
   # Called indirectly for compatibility with common.py tests
   def _motor_2_msg(self):
     to_send = make_msg(0, MSG_MOTOR_2)
-    to_send[0].RDLR = (0x1 << 16) if self.__class__.brake_pressed else 0
-    to_send[0].RDLR |= (self.__class__.cruise_engaged & 0x3) << 22
+    to_send[0].data[2] = 0x1 if self.__class__.brake_pressed else 0
+    to_send[0].data[2] |= (self.__class__.cruise_engaged & 0x3) << 6
     return to_send
 
   # Driver throttle input (motor_3)
   def _gas_msg(self, gas):
     to_send = make_msg(0, MSG_MOTOR_3)
-    to_send[0].RDLR = (gas & 0xFF) << 16
+    to_send[0].data[2] = (gas & 0xFF)
     return to_send
 
   # Cruise control buttons
   def _gra_neu_msg(self, bit):
     to_send = make_msg(2, MSG_GRA_NEU, 4)
-    to_send[0].RDLR = 1 << bit
-    to_send[0].RDLR |= volkswagen_pq_checksum(to_send[0], MSG_GRA_NEU, 8)
+    to_send[0].data[bit//8] = 1 << bit % 8
+    checksum = volkswagen_pq_checksum(to_send[0], MSG_GRA_NEU, 8)
+    to_send[0].data[0] |= checksum & 0xFF
+    to_send[0].data[1] |= (checksum & 0xFF00) >> 8
     return to_send
 
   def test_steer_safety_check(self):
@@ -248,7 +257,7 @@ class TestVolkswagenPqSafety(common.PandaSafetyTest):
       if msg == MSG_LENKHILFE_3:
         to_push = self._lenkhilfe_3_msg(0)
       self.assertTrue(self._rx(to_push))
-      to_push[0].RDHR ^= 0xFF
+      to_push[0].data[4] ^= 0xFF
       self.assertFalse(self._rx(to_push))
       self.assertFalse(self.safety.get_controls_allowed())
 
