@@ -151,7 +151,8 @@ class Panda(object):
   FLAG_HONDA_ALT_BRAKE = 1
   FLAG_HONDA_BOSCH_LONG = 2
   FLAG_HYUNDAI_LONG = 4
-  FLAG_TESLA_LONG = 1
+  FLAG_TESLA_POWERTRAIN = 1
+  FLAG_TESLA_LONG_CONTROL = 2
 
   def __init__(self, serial=None, claim=True):
     self._serial = serial
