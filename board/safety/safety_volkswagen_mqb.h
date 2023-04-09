@@ -14,9 +14,10 @@ const int VOLKSWAGEN_MQB_DRIVER_TORQUE_FACTOR = 3;
 #define MSG_HCA_01      0x126   // TX by OP, Heading Control Assist steering torque
 #define MSG_GRA_ACC_01  0x12B   // TX by OP, ACC control buttons for cancel/resume
 #define MSG_LDW_02      0x397   // TX by OP, Lane line recognition and text alerts
+#define MSG_PLA_01      0x130   // TX by OP, PLA
 
 // Transmit of GRA_ACC_01 is allowed on bus 0 and 2 to keep compatibility with gateway and camera integration
-const CanMsg VOLKSWAGEN_MQB_TX_MSGS[] = {{MSG_HCA_01, 0, 8}, {MSG_GRA_ACC_01, 0, 8}, {MSG_GRA_ACC_01, 2, 8}, {MSG_LDW_02, 0, 8}};
+const CanMsg VOLKSWAGEN_MQB_TX_MSGS[] = {{MSG_HCA_01, 0, 8}, {MSG_GRA_ACC_01, 0, 8}, {MSG_GRA_ACC_01, 2, 8}, {MSG_LDW_02, 0, 8}, {MSG_PLA_01, 0, 8}, {MSG_PLA_01, 2, 8}};
 #define VOLKSWAGEN_MQB_TX_MSGS_LEN (sizeof(VOLKSWAGEN_MQB_TX_MSGS) / sizeof(VOLKSWAGEN_MQB_TX_MSGS[0]))
 
 AddrCheckStruct volkswagen_mqb_addr_checks[] = {
@@ -67,6 +68,9 @@ static uint8_t volkswagen_mqb_compute_crc(CANPacket_t *to_push) {
       break;
     case MSG_MOTOR_20:
       crc ^= (uint8_t[]){0xE9,0x65,0xAE,0x6B,0x7B,0x35,0xE5,0x5F,0x4E,0xC7,0x86,0xA2,0xBB,0xDD,0xEB,0xB4}[counter];
+      break;
+    case MSG_PLA_01: // PLA_01
+      crc ^= (uint8_t[]){0x31,0x31,0x31,0x31,0x31,0x31,0x31,0x31,0x31,0x31,0x31,0x31,0x31,0x31,0x31,0x31}[counter];
       break;
     default: // Undefined CAN message, CRC check expected to fail
       break;
