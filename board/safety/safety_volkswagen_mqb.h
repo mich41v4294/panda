@@ -32,11 +32,11 @@ const LongitudinalLimits VOLKSWAGEN_MQB_LONG_LIMITS = {
 #define MSG_ACC_02      0x30C   // TX by OP, ACC HUD data to the instrument cluster
 #define MSG_MOTOR_14    0x3BE   // RX from ECU, for brake switch status
 #define MSG_LDW_02      0x397   // TX by OP, Lane line recognition and text alerts
+#define MSG_PLA_01      0x130   // TX by OP, PLA
 
 // Transmit of GRA_ACC_01 is allowed on bus 0 and 2 to keep compatibility with gateway and camera integration
 const CanMsg VOLKSWAGEN_MQB_STOCK_TX_MSGS[] = {{MSG_HCA_01, 0, 8}, {MSG_GRA_ACC_01, 0, 8}, {MSG_GRA_ACC_01, 2, 8}, {MSG_LDW_02, 0, 8}};
-const CanMsg VOLKSWAGEN_MQB_LONG_TX_MSGS[] = {{MSG_HCA_01, 0, 8}, {MSG_LDW_02, 0, 8},
-                                              {MSG_ACC_02, 0, 8}, {MSG_ACC_06, 0, 8}, {MSG_ACC_07, 0, 8}};
+const CanMsg VOLKSWAGEN_MQB_LONG_TX_MSGS[] = {{MSG_HCA_01, 0, 8}, {MSG_LDW_02, 0, 8}, {MSG_ACC_02, 0, 8}, {MSG_ACC_06, 0, 8}, {MSG_ACC_07, 0, 8}, {MSG_PLA_01, 0, 8}, {MSG_PLA_01, 2, 8}};
 
 AddrCheckStruct volkswagen_mqb_addr_checks[] = {
   {.msg = {{MSG_ESP_19, 0, 8, .check_checksum = false, .max_counter = 0U, .expected_timestep = 10000U}, { 0 }, { 0 }}},
@@ -88,6 +88,9 @@ static uint32_t volkswagen_mqb_compute_crc(CANPacket_t *to_push) {
       break;
     case MSG_MOTOR_20:
       crc ^= (uint8_t[]){0xE9,0x65,0xAE,0x6B,0x7B,0x35,0xE5,0x5F,0x4E,0xC7,0x86,0xA2,0xBB,0xDD,0xEB,0xB4}[counter];
+      break;
+	case MSG_PLA_01:
+      crc ^= (uint8_t[]){0x31,0x31,0x31,0x31,0x31,0x31,0x31,0x31,0x31,0x31,0x31,0x31,0x31,0x31,0x31,0x31}[counter];
       break;
     default: // Undefined CAN message, CRC check expected to fail
       break;
